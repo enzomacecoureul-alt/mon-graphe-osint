@@ -7,12 +7,15 @@
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body { font-family: sans-serif; background-color: #1e1e1e; color: #fff; margin: 0; padding: 10px; }
-        #network { width: 100%; height: 70vh; border: 1px solid #444; background-color: #252525; border-radius: 8px; }
+        #network { width: 100%; height: 60vh; border: 1px solid #444; background-color: #252525; border-radius: 8px; }
         .controls { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
         input, button { padding: 12px; border-radius: 6px; border: none; font-size: 16px; }
         input { background: #333; color: white; }
-        button { background: #007bff; color: white; font-weight: bold; cursor: pointer; }
-        button:active { background: #0056b3; }
+        button { color: white; font-weight: bold; cursor: pointer; }
+        .btn-add { background: #28a745; }
+        .btn-link { background: #007bff; }
+        .btn-del { background: #dc3545; }
+        button:active { opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -22,17 +25,23 @@
 
     <div class="controls">
         <input type="text" id="nodeLabel" placeholder="Nom du point (ex: Pseudo, Mail)">
-        <button onclick="addNode()">+ Ajouter le point</button>
-        <hr style="border-color:#444; width:100%;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <button class="btn-add" onclick="addNode()">+ Ajouter</button>
+            <button class="btn-del" onclick="deleteNode()">🗑️ Supprimer</button>
+        </div>
+        
+        <hr style="border-color:#444; width:100%; margin: 5px 0;">
+        
         <input type="text" id="fromNode" placeholder="ID du point de départ">
         <input type="text" id="toNode" placeholder="ID du point d'arrivée">
-        <button onclick="addEdge()">🔗 Relier les deux points</button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <button class="btn-link" onclick="addEdge()">🔗 Relier</button>
+            <button class="btn-del" onclick="deleteEdge()">❌ Rompre le lien</button>
+        </div>
     </div>
 
     <script>
-        var nodes = new vis.DataSet([
-            { id: 1, label: "Cible Initiale" }
-        ]);
+        var nodes = new vis.DataSet([{ id: "Cible", label: "Cible" }]);
         var edges = new vis.DataSet([]);
 
         var container = document.getElementById("network");
@@ -44,20 +53,47 @@
         };
         var network = new vis.Network(container, data, options);
 
+        // AJOUTER UN POINT
         function addNode() {
             var label = document.getElementById("nodeLabel").value;
-            if(label) {
-                // L'ID sera simplement le nom ou un chiffre
-                nodes.add({ id: label, label: label, color: "#28a745" });
+            if(label && !nodes.get(label)) {
+                nodes.add({ id: label, label: label });
                 document.getElementById("nodeLabel").value = "";
             }
         }
 
+        // SUPPRIMER UN POINT
+        function deleteNode() {
+            var label = document.getElementById("nodeLabel").value;
+            if(label) {
+                nodes.remove({ id: label });
+                document.getElementById("nodeLabel").value = "";
+            }
+        }
+
+        // RELIER DEUX POINTS
         function addEdge() {
             var from = document.getElementById("fromNode").value;
             var to = document.getElementById("toNode").value;
             if(from && to) {
-                edges.add({ from: from, to: to });
+                // On crée un ID unique pour le lien basé sur les deux noms
+                var edgeId = from + "-" + to;
+                if(!edges.get(edgeId)) {
+                    edges.add({ id: edgeId, from: from, to: to });
+                }
+                document.getElementById("fromNode").value = "";
+                document.getElementById("toNode").value = "";
+            }
+        }
+
+        // SUPPRIMER UN LIEN
+        function deleteEdge() {
+            var from = document.getElementById("fromNode").value;
+            var to = document.getElementById("toNode").value;
+            if(from && to) {
+                // On cherche le lien dans un sens ou dans l'autre
+                edges.remove({ id: from + "-" + to });
+                edges.remove({ id: to + "-" + from });
                 document.getElementById("fromNode").value = "";
                 document.getElementById("toNode").value = "";
             }
@@ -65,4 +101,3 @@
     </script>
 </body>
 </html>
-
