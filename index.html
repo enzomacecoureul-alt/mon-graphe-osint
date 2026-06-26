@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphe OSINT Mobile</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #1e1e1e; color: #fff; margin: 0; padding: 10px; }
+        #network { width: 100%; height: 70vh; border: 1px solid #444; background-color: #252525; border-radius: 8px; }
+        .controls { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        input, button { padding: 12px; border-radius: 6px; border: none; font-size: 16px; }
+        input { background: #333; color: white; }
+        button { background: #007bff; color: white; font-weight: bold; cursor: pointer; }
+        button:active { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+    <h3>Mon Graphe OSINT</h3>
+    <div id="network"></div>
+
+    <div class="controls">
+        <input type="text" id="nodeLabel" placeholder="Nom du point (ex: Pseudo, Mail)">
+        <button onclick="addNode()">+ Ajouter le point</button>
+        <hr style="border-color:#444; width:100%;">
+        <input type="text" id="fromNode" placeholder="ID du point de départ">
+        <input type="text" id="toNode" placeholder="ID du point d'arrivée">
+        <button onclick="addEdge()">🔗 Relier les deux points</button>
+    </div>
+
+    <script>
+        var nodes = new vis.DataSet([
+            { id: 1, label: "Cible Initiale" }
+        ]);
+        var edges = new vis.DataSet([]);
+
+        var container = document.getElementById("network");
+        var data = { nodes: nodes, edges: edges };
+        var options = {
+            nodes: { color: "#007bff", font: { color: "#ffffff" }, size: 25 },
+            edges: { color: "#ffffff", width: 2 },
+            physics: { stabilization: true }
+        };
+        var network = new vis.Network(container, data, options);
+
+        function addNode() {
+            var label = document.getElementById("nodeLabel").value;
+            if(label) {
+                // L'ID sera simplement le nom ou un chiffre
+                nodes.add({ id: label, label: label, color: "#28a745" });
+                document.getElementById("nodeLabel").value = "";
+            }
+        }
+
+        function addEdge() {
+            var from = document.getElementById("fromNode").value;
+            var to = document.getElementById("toNode").value;
+            if(from && to) {
+                edges.add({ from: from, to: to });
+                document.getElementById("fromNode").value = "";
+                document.getElementById("toNode").value = "";
+            }
+        }
+    </script>
+</body>
+</html>
+
