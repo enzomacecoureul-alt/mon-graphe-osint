@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Graphe OSINT Mobile</title>
+    <title>Graphe OSINT Persistant</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body { font-family: sans-serif; background-color: #1e1e1e; color: #fff; margin: 0; padding: 10px; }
-        #network { width: 100%; height: 60vh; border: 1px solid #444; background-color: #252525; border-radius: 8px; }
+        #network { width: 100%; height: 55vh; border: 1px solid #444; background-color: #252525; border-radius: 8px; }
         .controls { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-        input, button { padding: 12px; border-radius: 6px; border: none; font-size: 16px; }
+        input, button { padding: 12px; border-radius: 6px; border: none; font-size: 14px; }
         input { background: #333; color: white; }
         button { color: white; font-weight: bold; cursor: pointer; }
         .btn-add { background: #28a745; }
         .btn-link { background: #007bff; }
         .btn-del { background: #dc3545; }
+        .btn-orange { background: #fd7e14; }
         button:active { opacity: 0.8; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     </style>
 </head>
 <body>
@@ -24,25 +26,37 @@
     <div id="network"></div>
 
     <div class="controls">
+        <!-- Bloc Ajouter / Modifier / Supprimer -->
         <input type="text" id="nodeLabel" placeholder="Nom du point (ex: Pseudo, Mail)">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <input type="text" id="newNodeLabel" placeholder="Nouveau nom (Uniquement pour modifier)">
+        <div class="row">
             <button class="btn-add" onclick="addNode()">+ Ajouter</button>
-            <button class="btn-del" onclick="deleteNode()">🗑️ Supprimer</button>
+            <button class="btn-orange" onclick="updateNode()">✏️ Modifier nom</button>
         </div>
+        <button class="btn-del" onclick="deleteNode()">🗑️ Supprimer le point</button>
         
         <hr style="border-color:#444; width:100%; margin: 5px 0;">
         
+        <!-- Bloc Liens -->
         <input type="text" id="fromNode" placeholder="ID du point de départ">
         <input type="text" id="toNode" placeholder="ID du point d'arrivée">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="row">
             <button class="btn-link" onclick="addEdge()">🔗 Relier</button>
             <button class="btn-del" onclick="deleteEdge()">❌ Rompre le lien</button>
         </div>
+        
+        <hr style="border-color:#444; width:100%; margin: 5px 0;">
+        <!-- Bouton RAZ complet -->
+        <button class="btn-del" style="background: #6c757d;" onclick="clearAll()">⚠️ Tout effacer (Nouvelle enquête)</button>
     </div>
 
     <script>
-        var nodes = new vis.DataSet([{ id: "Cible", label: "Cible" }]);
-        var edges = new vis.DataSet([]);
+        // Charger les données existantes ou créer un graphe vide
+        var savedNodes = JSON.parse(localStorage.getItem('osint_nodes')) || [{ id: "Cible", label: "Cible" }];
+        var savedEdges = JSON.parse(localStorage.getItem('osint_edges')) || [];
+
+        var nodes = new vis.DataSet(savedNodes);
+        var edges = new vis.DataSet(savedEdges);
 
         var container = document.getElementById("network");
         var data = { nodes: nodes, edges: edges };
@@ -53,49 +67,85 @@
         };
         var network = new vis.Network(container, data, options);
 
-        // AJOUTER UN POINT
+        // Sauvegarde automatique à chaque changement
+        function saveGraph() {
+            localStorage.setItem('osint_nodes', JSON.stringify(nodes.get()));
+            localStorage.setItem('osint_edges', JSON.stringify(edges.get()));
+        }
+
         function addNode() {
             var label = document.getElementById("nodeLabel").value;
             if(label && !nodes.get(label)) {
                 nodes.add({ id: label, label: label });
                 document.getElementById("nodeLabel").value = "";
+                saveGraph();
             }
         }
 
-        // SUPPRIMER UN POINT
+        // CHANGER LE NOM D'UN POINT
+        function updateNode() {
+            var oldLabel = document.getElementById("nodeLabel").value;
+            var newLabel = document.getElementById("newNodeLabel").value;
+            
+            if(oldLabel && newLabel && nodes.get(oldLabel)) {
+                // On récupère les liens liés à l'ancien point pour les réassigner
+                var currentEdges = edges.get();
+                currentEdges.forEach(function(edge) {
+                    if(edge.from === oldLabel) edges.update({id: edge.id, from: newLabel});
+                    if(edge.to === oldLabel) edges.update({id: edge.id, to: newLabel});
+                });
+                
+                // On remplace le point lui-même
+                nodes.remove({ id: oldLabel });
+                nodes.add({ id: newLabel, label: newLabel });
+                
+                document.getElementById("nodeLabel").value = "";
+                document.getElementById("newNodeLabel").value = "";
+                saveGraph();
+            }
+        }
+
         function deleteNode() {
             var label = document.getElementById("nodeLabel").value;
             if(label) {
                 nodes.remove({ id: label });
                 document.getElementById("nodeLabel").value = "";
+                saveGraph();
             }
         }
 
-        // RELIER DEUX POINTS
         function addEdge() {
             var from = document.getElementById("fromNode").value;
             var to = document.getElementById("toNode").value;
             if(from && to) {
-                // On crée un ID unique pour le lien basé sur les deux noms
                 var edgeId = from + "-" + to;
                 if(!edges.get(edgeId)) {
                     edges.add({ id: edgeId, from: from, to: to });
                 }
                 document.getElementById("fromNode").value = "";
                 document.getElementById("toNode").value = "";
+                saveGraph();
             }
         }
 
-        // SUPPRIMER UN LIEN
         function deleteEdge() {
             var from = document.getElementById("fromNode").value;
             var to = document.getElementById("toNode").value;
             if(from && to) {
-                // On cherche le lien dans un sens ou dans l'autre
                 edges.remove({ id: from + "-" + to });
                 edges.remove({ id: to + "-" + from });
                 document.getElementById("fromNode").value = "";
                 document.getElementById("toNode").value = "";
+                saveGraph();
+            }
+        }
+
+        function clearAll() {
+            if(confirm("Tu vas effacer tout ton graphe actuel. Continuer ?")) {
+                nodes.clear();
+                edges.clear();
+                nodes.add({ id: "Cible", label: "Cible" });
+                saveGraph();
             }
         }
     </script>
